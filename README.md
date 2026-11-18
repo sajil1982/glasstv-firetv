@@ -57,8 +57,27 @@ tools/disable.sh examples/amazon-fire-tv-stick-2020/debloat.txt
 cd launcher && ./build-and-install.sh        # or build-and-install.ps1 on Windows
 ```
 
-On **Fire TV**, after installing, enable the "Home button" accessibility service so the
-Home key opens glasstv (Settings → Accessibility), then set it as the default home.
+On **Fire TV** the stock home can't be replaced, so glasstv takes over the Home button
+instead. Set `"stock_home_redirect": "com.amazon.tv.launcher"` in your theme, then run once
+over ADB after installing:
+
+```sh
+adb shell pm grant com.gathin.tvhome android.permission.WRITE_SECURE_SETTINGS
+adb shell cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.GuardRevival
+adb shell settings put secure enabled_accessibility_services com.gathin.tvhome/.HomeKeyService
+adb shell settings put secure accessibility_enabled 1
+adb shell settings put global alarm_manager_constants min_futurity=0
+```
+
+- The **Home button** helper (accessibility service) sends Home presses to glasstv and opens
+  it again after a reboot.
+- Fire OS turns that helper off whenever the app is force-stopped (memory cleanup, an app
+  update, Settings → Applications → Force stop). The **GuardRevival** listener and the
+  `WRITE_SECURE_SETTINGS` grant let glasstv switch it back on by itself, so after a reboot
+  you land on glasstv rather than the Amazon home.
+- `min_futurity=0` removes Fire OS's ~5 s delay before Home switches apps.
+
+You can switch ADB debugging off again afterwards; the grants stay.
 Full per-device notes are in [`docs/`](docs) and [`examples/`](examples).
 
 ## Configuring the look
@@ -77,6 +96,9 @@ The home screen reads a theme — dock apps, columns, wallpaper, colours — fro
 | `weather_wallpaper` | Pick `wallpapers/<period>-<weather>.jpg` by time + weather |
 | `force_landscape_apps` | Hold the screen landscape for portrait-only apps (Fire TV) |
 | `pointer_apps` | Show the remote pointer inside touch-only apps (Fire TV) |
+
+`force_landscape_apps` and `pointer_apps` can go in the theme's `config.json`, so you can add an
+app without rebuilding. Example: `"pointer_apps": ["com.hikvision.hikconnect"]`.
 
 See [`themes/README.md`](themes/README.md) for every key, and
 [`tools/wallpaper-generators/`](tools/wallpaper-generators) to make wallpaper sets.
